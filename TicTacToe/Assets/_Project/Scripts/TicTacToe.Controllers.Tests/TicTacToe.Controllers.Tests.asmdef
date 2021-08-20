@@ -1,0 +1,24 @@
+{
+    "name": "TicTacToe.Controllers.Tests",
+    "rootNamespace": "",
+    "references": [
+        "GUID:27619889b8ba8c24980f49ee34dbb44a",
+        "GUID:0acc523941302664db1f4e527237feb3",
+        "GUID:1789de5663e6f8a46862a77460407d8a",
+        "GUID:d69440fe255fc434e9cebe7cbc600109",
+        "GUID:51dc32a4f7dcc3f44a3a7c4f7b4e2bd5"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

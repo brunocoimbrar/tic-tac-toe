@@ -1,0 +1,16 @@
+{
+    "name": "TicTacToe.Models",
+    "rootNamespace": "",
+    "references": [
+        "GUID:1789de5663e6f8a46862a77460407d8a"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

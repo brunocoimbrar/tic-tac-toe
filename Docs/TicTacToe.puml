@@ -1,0 +1,66 @@
+@startuml
+
+package TicTacToe.Common
+{
+  interface IGameModel
+  interface IAIModel
+  interface IPlayerModel
+}
+
+IGameModel *-- IAIModel
+IGameModel *-- IPlayerModel
+
+package TicTacToe.Models
+{
+  class GameModel <<Serializable>> implements IGameModel
+  class AIModel <<Serializable>> implements IAIModel
+  class PlayerModel <<Serializable>> implements IPlayerModel
+  class AITurnModel <<Serializable>>
+}
+
+GameModel *-- AIModel
+GameModel *-- AITurnModel
+GameModel *-- PlayerModel
+
+package TicTacToe.Views
+{
+  class GameView <<MonoBehaviour>>
+  class BoardView <<MonoBehaviour>>
+  class SlotView <<MonoBehaviour>>
+  class PlayerView <<MonoBehaviour>>
+  class TurnView <<MonoBehaviour>>
+  class SlotView <<MonoBehaviour, IPointerClickHandler>>
+}
+
+GameView *-down- IGameModel
+GameView *-up- BoardView
+GameView *-up- PlayerView
+GameView *-up- TurnView
+BoardView *-up- SlotView
+
+package TicTacToe.Controllers
+{
+  class GameController
+  class AITurnController
+  class BoardController
+}
+
+GameController *-- GameModel
+GameController *-- AITurnController
+GameController *-left- BoardController
+AITurnController *-- BoardController
+AITurnController *-- AITurnModel
+AITurnController *-- AIModel
+
+package TicTacToe
+{
+  class GameSystem <<MonoBehaviour>>
+  class GameSystemData <<ScriptableObject>>
+}
+
+GameSystem *-- GameSystemData
+GameSystem *-- GameController
+GameSystem *-up- GameView
+GameSystemData *-- GameModel
+
+@enduml
