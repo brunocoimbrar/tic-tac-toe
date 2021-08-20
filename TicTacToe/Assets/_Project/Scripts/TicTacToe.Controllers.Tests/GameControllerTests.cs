@@ -6,13 +6,15 @@ using TicTacToe.Controllers;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace TicTacToe.Tests
+namespace TicTacToe.Controllers.Tests
 {
     [TestOf(typeof(GameController))]
     public class GameControllerTests : ControllerTestFixtureBase
     {
+        private const int AIIndex = 2;
+
         [Test]
-        public void VSHuman()
+        public void Human_VS_Human()
         {
             // ReSharper disable once UnusedVariable
             GameController gameController = new GameController(Model, EventService);
@@ -60,6 +62,44 @@ namespace TicTacToe.Tests
             {
                 Slot = new Vector2Int(2, 2)
             });
+        }
+
+        [Test]
+        public void AI_VS_AI()
+        {
+            GameController gameController = new GameController(Model, EventService);
+
+            EventService.Invoke(this, new UpdatePlayerEvent
+            {
+                PlayerIndex = 1,
+                AIIndex = AIIndex,
+                Sign = "O",
+            });
+
+            EventService.Invoke(this, new UpdatePlayerEvent
+            {
+                PlayerIndex = 0,
+                AIIndex = AIIndex,
+                Sign = "X",
+            });
+
+            bool stop = false;
+
+            EventService.AddListener<GameEndedEvent>(delegate
+            {
+                stop = true;
+                Debug.Log(nameof(GameEndedEvent));
+                Assert.That(Model.Sequences.Count, Is.EqualTo(0));
+            });
+
+            LogAssert.Expect(LogType.Log, nameof(GameEndedEvent));
+
+            float deltaTime = Model.AIList[AIIndex].PlayDelay / 2f;
+
+            while (!stop)
+            {
+                gameController.OnUpdate(deltaTime);
+            }
         }
     }
 }

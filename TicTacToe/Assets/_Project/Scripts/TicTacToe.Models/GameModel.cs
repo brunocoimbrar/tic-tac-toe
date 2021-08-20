@@ -61,11 +61,7 @@ namespace TicTacToe.Models
 
         public int PlayerIndex => Turn % _players.Count;
 
-        public int SequenceSize
-        {
-            get => _sequenceSize;
-            set => _sequenceSize = Mathf.Clamp(value, MinBoardSize, _boardSize);
-        }
+        public int SequenceSize => _sequenceSize;
 
         public int Turn { get; set; }
 
@@ -110,7 +106,7 @@ namespace TicTacToe.Models
 
             _boardSize = value;
             _board = new int?[_boardSize, _boardSize];
-            SequenceSize = _sequenceSize;
+            _sequenceSize = Mathf.Clamp(_sequenceSize, MinBoardSize, _boardSize);
         }
 
         private void SetPlayerCount(int value)

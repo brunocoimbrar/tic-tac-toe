@@ -50,7 +50,7 @@ namespace TicTacToe.Controllers
             }
         }
 
-        private Vector2Int Play(int playerIndex, int targetDepth)
+        private IReadOnlyList<Vector2Int> GetAvailableSlots()
         {
             List<Vector2Int> availableSlots = new List<Vector2Int>();
 
@@ -67,11 +67,17 @@ namespace TicTacToe.Controllers
                 }
             }
 
-            int? winMoveDepth = null;
+            return availableSlots;
+        }
+
+        private Vector2Int Play(int playerIndex, int targetDepth)
+        {
             int? loseMoveDepth = null;
+            int? winMoveDepth = null;
             int playerTurn = _model.Turn;
             int playerCount = _model.Players.Count;
             List<Vector2Int> choices = new List<Vector2Int>();
+            IReadOnlyList<Vector2Int> availableSlots = GetAvailableSlots();
             int?[,] board = null;
             _boardController.CopyBoard(ref board);
 

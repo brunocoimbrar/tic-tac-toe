@@ -1,11 +1,10 @@
 ﻿using NUnit.Framework;
-using System.Collections;
 using TicTacToe.Common.ControllerEvents;
 using TicTacToe.Controllers;
 using UnityEngine;
 using UnityEngine.TestTools;
 
-namespace TicTacToe.Tests
+namespace TicTacToe.Controllers.Tests
 {
     [TestOf(typeof(AITurnController))]
     public class AITurnControllerTests : ControllerTestFixtureBase
@@ -17,7 +16,7 @@ namespace TicTacToe.Tests
             public Vector3Int Expected;
         }
 
-        private const int AIIndex = 1;
+        private const int AIIndex = 2;
 
         private static readonly object[] PlayAvoidsDefeatTestCases =
         {
@@ -100,8 +99,8 @@ namespace TicTacToe.Tests
             Model.GetPlayer(0).AIIndex = AIIndex;
         }
 
-        [UnityTest]
-        public IEnumerator Play_AvoidsDefeat([ValueSource(nameof(PlayAvoidsDefeatTestCases))] PlayTestCase testCase)
+        [Test]
+        public void Play_AvoidsDefeat([ValueSource(nameof(PlayAvoidsDefeatTestCases))] PlayTestCase testCase)
         {
             BoardController boardController = new BoardController(Model, EventService);
             AITurnController aiTurnController = new AITurnController(Model, boardController);
@@ -124,13 +123,18 @@ namespace TicTacToe.Tests
             LogAssert.Expect(LogType.Log, ((Vector2Int)testCase.Expected).ToString());
             aiTurnController.Play(testCase.Expected.z);
 
-            yield return new WaitForSeconds(Model.AIList[AIIndex].PlayDelay);
+            float deltaTime = Model.AIList[AIIndex].PlayDelay / 2f;
+
+            for (float i = 0; i < Model.AIList[AIIndex].PlayDelay; i += deltaTime)
+            {
+                aiTurnController.OnUpdate(deltaTime);
+            }
 
             LogAssert.NoUnexpectedReceived();
         }
 
-        [UnityTest]
-        public IEnumerator Play_EnsuresVictory([ValueSource(nameof(PlayEnsuresVictoryTestCases))] PlayTestCase testCase)
+        [Test]
+        public void Play_EnsuresVictory([ValueSource(nameof(PlayEnsuresVictoryTestCases))] PlayTestCase testCase)
         {
             BoardController boardController = new BoardController(Model, EventService);
             AITurnController aiTurnController = new AITurnController(Model, boardController);
@@ -148,7 +152,12 @@ namespace TicTacToe.Tests
             LogAssert.Expect(LogType.Log, testCase.Expected.z.ToString());
             aiTurnController.Play(testCase.Expected.z);
 
-            yield return new WaitForSeconds(Model.AIList[AIIndex].PlayDelay);
+            float deltaTime = Model.AIList[AIIndex].PlayDelay / 2f;
+
+            for (float i = 0; i < Model.AIList[AIIndex].PlayDelay; i += deltaTime)
+            {
+                aiTurnController.OnUpdate(deltaTime);
+            }
         }
     }
 }

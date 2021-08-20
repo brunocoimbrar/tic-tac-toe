@@ -2,7 +2,7 @@
 using TicTacToe.Common;
 using TicTacToe.Models;
 
-namespace TicTacToe.Tests
+namespace TicTacToe.Controllers.Tests
 {
     public abstract class ControllerTestFixtureBase
     {
