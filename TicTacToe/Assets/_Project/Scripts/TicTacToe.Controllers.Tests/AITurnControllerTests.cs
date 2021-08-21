@@ -1,6 +1,5 @@
 ﻿using NUnit.Framework;
 using TicTacToe.Common.ControllerEvents;
-using TicTacToe.Controllers;
 using UnityEngine;
 using UnityEngine.TestTools;
 
@@ -15,8 +14,6 @@ namespace TicTacToe.Controllers.Tests
 
             public Vector3Int Expected;
         }
-
-        private const int AIIndex = 2;
 
         private static readonly object[] PlayAvoidsDefeatTestCases =
         {
@@ -53,7 +50,6 @@ namespace TicTacToe.Controllers.Tests
                 Expected = new Vector3Int(2, 0, 1)
             }
         };
-
         private static readonly object[] PlayEnsuresVictoryTestCases =
         {
             new PlayTestCase
@@ -92,72 +88,99 @@ namespace TicTacToe.Controllers.Tests
             }
         };
 
-        [SetUp]
-        public override void SetUp()
+        [Test]
+        public void OnUpdate_DoesNothingWhenIdle()
         {
-            base.SetUp();
-            Model.GetPlayer(0).AIIndex = AIIndex;
+            BoardController boardController = new BoardController(Model, EventService);
+            AITurnController aiTurnController = new AITurnController(Model, boardController);
+
+            EventService.AddListener(delegate(object sender, SlotValueChangedEvent e)
+            {
+                Debug.Log(nameof(SlotValueChangedEvent));
+            });
+
+            aiTurnController.OnUpdate(1);
+            LogAssert.NoUnexpectedReceived();
+        }
+
+        [Test]
+        public void Play_RandomAI()
+        {
+            Model.AIList[0].Depth = 0;
+            Model.AIList[0].PlayDelay = 0;
+            Model.Players[0].AIIndex = 0;
+
+            BoardController boardController = new BoardController(Model, EventService);
+            AITurnController aiTurnController = new AITurnController(Model, boardController);
+
+            EventService.AddListener(delegate(object sender, TurnChangedEvent e)
+            {
+                Debug.Log(nameof(TurnChangedEvent));
+                Assert.That(Model.Turn, Is.EqualTo(1));
+            });
+
+            LogAssert.Expect(LogType.Log, nameof(TurnChangedEvent));
+            aiTurnController.Play(0);
         }
 
         [Test]
         public void Play_AvoidsDefeat([ValueSource(nameof(PlayAvoidsDefeatTestCases))] PlayTestCase testCase)
         {
+            Model.AIList[0].Depth = 1;
+            Model.AIList[0].PlayDelay = 0;
+            Model.Players[0].AIIndex = 0;
+            Model.Players[1].AIIndex = 0;
+            Model.Turn = testCase.Plays.Length;
+
             BoardController boardController = new BoardController(Model, EventService);
             AITurnController aiTurnController = new AITurnController(Model, boardController);
 
             foreach (Vector3Int play in testCase.Plays)
             {
-                Model.SetSlotValue(play.x, play.y, play.z);
+                Model.Board[play.x, play.y] = play.z;
             }
 
             EventService.AddListener<GameEndedEvent>(delegate
             {
-                Debug.Log("Game Ended");
+                Debug.Log(nameof(GameEndedEvent));
             });
 
             EventService.AddListener(delegate(object sender, SlotValueChangedEvent e)
             {
-                Debug.Log(e.Slot);
+                Debug.Log(nameof(SlotValueChangedEvent));
+                Assert.That(e.Slot, Is.EqualTo((Vector2Int)testCase.Expected));
             });
 
-            LogAssert.Expect(LogType.Log, ((Vector2Int)testCase.Expected).ToString());
+            LogAssert.Expect(LogType.Log, nameof(SlotValueChangedEvent));
             aiTurnController.Play(testCase.Expected.z);
-
-            float deltaTime = Model.AIList[AIIndex].PlayDelay / 2f;
-
-            for (float i = 0; i < Model.AIList[AIIndex].PlayDelay; i += deltaTime)
-            {
-                aiTurnController.OnUpdate(deltaTime);
-            }
-
             LogAssert.NoUnexpectedReceived();
         }
 
         [Test]
         public void Play_EnsuresVictory([ValueSource(nameof(PlayEnsuresVictoryTestCases))] PlayTestCase testCase)
         {
+            Model.AIList[0].Depth = 1;
+            Model.AIList[0].PlayDelay = 0;
+            Model.Players[0].AIIndex = 0;
+            Model.Players[1].AIIndex = 0;
+            Model.Turn = testCase.Plays.Length;
+
             BoardController boardController = new BoardController(Model, EventService);
             AITurnController aiTurnController = new AITurnController(Model, boardController);
 
             foreach (Vector3Int play in testCase.Plays)
             {
-                Model.SetSlotValue(play.x, play.y, play.z);
+                Model.Board[play.x, play.y] = play.z;
             }
 
             EventService.AddListener<GameEndedEvent>(delegate
             {
-                Debug.Log(Model.GetSlotValue(testCase.Expected.x, testCase.Expected.y));
+                Debug.Log(nameof(GameEndedEvent));
+                Assert.That(Model.Board[testCase.Expected.x, testCase.Expected.y], Is.EqualTo(testCase.Expected.z));
             });
 
-            LogAssert.Expect(LogType.Log, testCase.Expected.z.ToString());
+            LogAssert.Expect(LogType.Log, nameof(GameEndedEvent));
             aiTurnController.Play(testCase.Expected.z);
-
-            float deltaTime = Model.AIList[AIIndex].PlayDelay / 2f;
-
-            for (float i = 0; i < Model.AIList[AIIndex].PlayDelay; i += deltaTime)
-            {
-                aiTurnController.OnUpdate(deltaTime);
-            }
         }
     }
 }

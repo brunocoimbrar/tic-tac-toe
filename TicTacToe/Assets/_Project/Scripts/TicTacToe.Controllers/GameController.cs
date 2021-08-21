@@ -33,7 +33,7 @@ namespace TicTacToe.Controllers
 
         private void HandleSlotClicked(object sender, SlotClickedEvent e)
         {
-            if (_model.Sequences.Count > 0)
+            if (_model.Board.Sequences.Count > 0)
             {
                 return;
             }
@@ -61,7 +61,7 @@ namespace TicTacToe.Controllers
 
         private void HandleUpdatePlayer(object sender, UpdatePlayerEvent e)
         {
-            PlayerModel player = _model.GetPlayer(e.PlayerIndex);
+            PlayerModel player = _model.Players[e.PlayerIndex];
             player.AIIndex = e.AIIndex == _model.AIList.Count ? -1 : e.AIIndex;
             player.Sign = e.Sign;
             _eventService.Invoke(this, new PlayerUpdatedEvent
@@ -83,18 +83,17 @@ namespace TicTacToe.Controllers
         {
             _model.AITurn.RemainingPlayDelay = 0;
             _model.Turn = 0;
-            _model.Sequences = Array.Empty<Sequence>();
+            _model.Board.Sequences = Array.Empty<Sequence>();
 
-            for (int x = 0; x < _model.BoardSize; x++)
+            for (int x = 0; x < _model.Board.Width; x++)
             {
-                for (int y = 0; y < _model.BoardSize; y++)
+                for (int y = 0; y < _model.Board.Width; y++)
                 {
-                    _model.SetSlotValue(x, y, null);
+                    _model.Board[x, y] = null;
                 }
             }
 
-            PlayerModel player = _model.GetPlayer(0);
-            player.AIIndex = -1;
+            _model.Players[0].AIIndex = -1;
             _eventService.Invoke(this, new GameRestartedEvent());
         }
     }

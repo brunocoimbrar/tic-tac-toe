@@ -48,7 +48,7 @@ namespace TicTacToe.Views
 
         private void UpdateSlotText()
         {
-            int? value = _model.GetSlotValue(_slot.x, _slot.y);
+            int? value = _model.Board[_slot.x, _slot.y];
 
             if (value.HasValue)
             {

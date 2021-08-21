@@ -13,8 +13,9 @@ MonoBehaviour:
   m_Name: GameSystemData
   m_EditorClassIdentifier: 
   _model:
-    _boardSize: 3
-    _sequenceSize: 3
+    _board:
+      _size: 3
+      _sequenceSize: 3
     _players:
     - _sign: X
       _aiIndex: -1
@@ -23,10 +24,10 @@ MonoBehaviour:
     _aiList:
     - _description: Easy
       _depth: 1
-      _playDelay: 0.2
+      _playDelay: 0.3
     - _description: Medium
-      _depth: 2
-      _playDelay: 0.2
+      _depth: 3
+      _playDelay: 0.3
     - _description: Hard
-      _depth: 4
-      _playDelay: 0.2
+      _depth: 6
+      _playDelay: 0.3

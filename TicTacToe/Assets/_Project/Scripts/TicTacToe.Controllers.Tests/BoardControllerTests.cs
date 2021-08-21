@@ -21,7 +21,7 @@ namespace TicTacToe.Controllers.Tests
 
             boardController.Play(Vector2Int.one);
             LogAssert.NoUnexpectedReceived();
-            Assert.That(Model.GetSlotValue(1, 1)!.Value, Is.EqualTo(0));
+            Assert.That(Model.Board[1, 1]!.Value, Is.EqualTo(0));
         }
 
         [Test]
@@ -32,7 +32,7 @@ namespace TicTacToe.Controllers.Tests
             EventService.AddListener(delegate(object sender, SlotValueChangedEvent e)
             {
                 Debug.Log(e.Slot);
-                Assert.That(Model.GetSlotValue(1, 1)!.Value, Is.EqualTo(0));
+                Assert.That(Model.Board[1, 1]!.Value, Is.EqualTo(0));
             });
 
             LogAssert.Expect(LogType.Log, Vector2Int.one.ToString());

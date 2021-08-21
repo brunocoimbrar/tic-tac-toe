@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using JetBrains.Annotations;
+using System.Collections.Generic;
 using TicTacToe.Common;
 using TicTacToe.Models;
 using UnityEngine;
@@ -7,6 +8,33 @@ namespace TicTacToe.Controllers
 {
     public sealed class AITurnController
     {
+        private sealed class SimulationBoard : IReadOnlyTable<int?>
+        {
+            private readonly int?[] _slots;
+
+            public SimulationBoard(IReadOnlyTable<int?> source)
+            {
+                Width = source.Width;
+                _slots = new int?[Width * Width];
+
+                for (int x = 0; x < Width; x++)
+                {
+                    for (int y = 0; y < Width; y++)
+                    {
+                        this[x, y] = source[x, y];
+                    }
+                }
+            }
+
+            public int Width { get; }
+
+            public int? this[int x, int y]
+            {
+                get => _slots[Width * y + x];
+                set => _slots[Width * y + x] = value;
+            }
+        }
+
         private readonly GameModel _model;
         private readonly BoardController _boardController;
 
@@ -38,7 +66,7 @@ namespace TicTacToe.Controllers
             IPlayerModel player = _model.Players[playerIndex];
             IAIModel ai = _model.AIList[player.AIIndex];
             AITurnModel aiTurn = _model.AITurn;
-            aiTurn.Slot = Play(playerIndex, ai.Depth);
+            aiTurn.Slot = GetBestChoice(playerIndex, ai.Depth);
 
             if (ai.PlayDelay > 0)
             {
@@ -50,105 +78,167 @@ namespace TicTacToe.Controllers
             }
         }
 
-        private IReadOnlyList<Vector2Int> GetAvailableSlots()
+        private static void GetAvailableSlots(IReadOnlyTable<int?> table, List<Vector2Int> results)
         {
-            List<Vector2Int> availableSlots = new List<Vector2Int>();
-
-            for (int x = 0; x < _model.BoardSize; x++)
+            for (int x = 0; x < table.Width; x++)
             {
-                for (int y = 0; y < _model.BoardSize; y++)
+                for (int y = 0; y < table.Width; y++)
                 {
-                    if (_model.GetSlotValue(x, y).HasValue)
+                    if (table[x, y].HasValue)
                     {
                         continue;
                     }
 
-                    availableSlots.Add(new Vector2Int(x, y));
+                    results.Add(new Vector2Int(x, y));
                 }
             }
-
-            return availableSlots;
         }
 
-        private Vector2Int Play(int playerIndex, int targetDepth)
+        private Vector2Int GetBestChoice(int playerIndex, int targetDepth)
         {
-            int? loseMoveDepth = null;
-            int? winMoveDepth = null;
-            int playerTurn = _model.Turn;
-            int playerCount = _model.Players.Count;
-            List<Vector2Int> choices = new List<Vector2Int>();
-            IReadOnlyList<Vector2Int> availableSlots = GetAvailableSlots();
-            int?[,] board = null;
-            _boardController.CopyBoard(ref board);
-
-            for (int depth = 0; depth < targetDepth && loseMoveDepth == null; depth++)
+            static Vector2Int getRandomChoice(IReadOnlyList<Vector2Int> choices)
             {
-                if (availableSlots.Count - targetDepth == 1)
+                return choices.Count == 1 ? choices[0] : choices[Random.Range(0, choices.Count)];
+            }
+
+            SimulationBoard board = new SimulationBoard(_model.Board);
+            List<Vector2Int> allChoices = new List<Vector2Int>();
+            GetAvailableSlots(board, allChoices);
+
+            targetDepth = Mathf.Min(allChoices.Count, targetDepth);
+
+            if (targetDepth == 0 || allChoices.Count == board.Width * board.Width)
+            {
+                return getRandomChoice(allChoices);
+            }
+
+            GetScoreMap(allChoices, board, playerIndex, targetDepth, out Dictionary<Vector2Int, int> scoreMap);
+
+            int bestScore = int.MinValue;
+            List<Vector2Int> bestChoices = new List<Vector2Int>();
+
+            foreach (Vector2Int choice in allChoices)
+            {
+                if (!scoreMap.TryGetValue(choice, out int score) || score < bestScore)
                 {
-                    break;
+                    continue;
                 }
 
-                foreach (Vector2Int availableSlot in availableSlots)
+                if (score > bestScore)
                 {
-                    int playerTurnCopy = playerTurn;
+                    bestScore = score;
+                    bestChoices.Clear();
+                }
 
-                    if (!_boardController.TrySimulatePlay(board, availableSlot, playerIndex, ref playerTurn, out IReadOnlyList<Sequence> sequences))
+                bestChoices.Add(choice);
+            }
+
+            return getRandomChoice(bestChoices);
+        }
+
+        private int GetChoiceScoreRecursive(List<Vector2Int> allChoices, SimulationBoard board, int playerIndex, int opponentIndex, int remainingDepth, bool isPlayerTurn)
+        {
+            if (remainingDepth <= 0)
+            {
+                return 0;
+            }
+
+            if (isPlayerTurn)
+            {
+                int result = int.MinValue;
+
+                foreach (Vector2Int choice in allChoices)
+                {
+                    if (board[choice.x, choice.y].HasValue)
                     {
                         continue;
                     }
 
-                    if (sequences != null && sequences.Count > 0)
+                    if (_boardController.HasAnySequence(board, choice, playerIndex))
                     {
-                        if (winMoveDepth == null || winMoveDepth > depth)
-                        {
-                            winMoveDepth = depth;
-                            targetDepth = depth;
-                            choices.Clear();
-                        }
-
-                        choices.Add(availableSlot);
+                        return 1;
                     }
 
-                    board[availableSlot.x, availableSlot.y] = null;
-                    playerTurn = playerTurnCopy;
+                    board[choice.x, choice.y] = playerIndex;
+
+                    int score = GetChoiceScoreRecursive(allChoices, board, playerIndex, opponentIndex, remainingDepth - 1, false);
+                    result = Mathf.Max(result, score);
+                    board[choice.x, choice.y] = null;
                 }
 
-                for (int offset = 1; offset < playerCount; offset++)
-                {
-                    foreach (Vector2Int availableSlot in availableSlots)
-                    {
-                        int playerTurnCopy = playerTurn;
-                        int offsetPlayerIndex = (playerIndex + offset) % _model.Players.Count;
-
-                        if (!_boardController.TrySimulatePlay(board, availableSlot, offsetPlayerIndex, ref playerTurn, out IReadOnlyList<Sequence> sequences))
-                        {
-                            continue;
-                        }
-
-                        if (sequences != null && sequences.Count > 0)
-                        {
-                            if (loseMoveDepth == null || loseMoveDepth > depth)
-                            {
-                                loseMoveDepth = depth;
-                                targetDepth = depth;
-                                choices.Clear();
-                            }
-
-                            choices.Add(availableSlot);
-                        }
-
-                        board[availableSlot.x, availableSlot.y] = null;
-                        playerTurn = playerTurnCopy;
-                    }
-                }
+                return result;
             }
-
-            if (choices.Count == 0)
+            else
             {
-                choices.AddRange(availableSlots);
+                int result = int.MaxValue;
+
+                foreach (Vector2Int choice in allChoices)
+                {
+                    if (board[choice.x, choice.y].HasValue)
+                    {
+                        continue;
+                    }
+
+                    if (_boardController.HasAnySequence(board, choice, opponentIndex))
+                    {
+                        return -1;
+                    }
+
+                    board[choice.x, choice.y] = opponentIndex;
+
+                    int score = GetChoiceScoreRecursive(allChoices, board, playerIndex, opponentIndex, remainingDepth - 1, true);
+                    result = Mathf.Min(result, score);
+                    board[choice.x, choice.y] = null;
+                }
+
+                return result;
+            }
+        }
+
+        private void GetScoreMap(List<Vector2Int> allChoices, SimulationBoard board, int playerIndex, int targetDepth, [NotNull] out Dictionary<Vector2Int, int> scoreMap)
+        {
+            static bool isNextMoveCritical(BoardController boardController, List<Vector2Int> allChoices, IReadOnlyTable<int?> board, int playerIndex, IDictionary<Vector2Int, int> scoreMap)
+            {
+                bool result = false;
+
+                foreach (Vector2Int choice in allChoices)
+                {
+                    bool hasAnySequence = boardController.HasAnySequence(board, choice, playerIndex);
+                    scoreMap[choice] = hasAnySequence ? 1 : int.MinValue;
+                    result |= hasAnySequence;
+                }
+
+                return result;
             }
 
-            return choices.Count == 1 ? choices[0] : choices[Random.Range(0, choices.Count)];
+            scoreMap = new Dictionary<Vector2Int, int>();
+
+            if (isNextMoveCritical(_boardController, allChoices, board, playerIndex, scoreMap))
+            {
+                return;
+            }
+
+            bool hasBestChoice = false;
+
+            for (int offset = 1; offset < _model.Players.Count; offset++)
+            {
+                int otherIndex = (playerIndex + offset) % _model.Players.Count;
+                hasBestChoice |= isNextMoveCritical(_boardController, allChoices, board, otherIndex, scoreMap);
+            }
+
+            if (hasBestChoice || targetDepth <= 1)
+            {
+                return;
+            }
+
+            int opponentIndex = (playerIndex + 1) % _model.Players.Count;
+
+            foreach (Vector2Int choice in allChoices)
+            {
+                board[choice.x, choice.y] = playerIndex;
+                scoreMap[choice] = GetChoiceScoreRecursive(allChoices, board, playerIndex, opponentIndex, targetDepth - 1, false);
+                board[choice.x, choice.y] = null;
+            }
         }
     }
 }

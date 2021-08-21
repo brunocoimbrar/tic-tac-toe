@@ -29,11 +29,11 @@ namespace TicTacToe.Views
             _model = model;
             _eventService = eventService;
 
-            for (int x = 0; x < model.BoardSize; x++)
+            for (int x = 0; x < model.Board.Width; x++)
             {
                 RectTransform column = Instantiate(_columnPrefab, _columnContainer, false);
 
-                for (int y = 0; y < model.BoardSize; y++)
+                for (int y = 0; y < model.Board.Width; y++)
                 {
                     Vector2Int slot = new Vector2Int(x, y);
                     SlotView slotView = Instantiate(_slotViewPrefab, column, false);
@@ -68,7 +68,7 @@ namespace TicTacToe.Views
 
         private void HandleGameEnded(object sender, GameEndedEvent e)
         {
-            foreach (Sequence sequence in _model.Sequences)
+            foreach (Sequence sequence in _model.Board.Sequences)
             {
                 LineRenderer lineRenderer = Instantiate(_lineRendererPrefab);
                 lineRenderer.SetPosition(0, (Vector2)_slotViews[sequence.From].transform.position);

@@ -3,21 +3,25 @@
 package TicTacToe.Common
 {
   interface IGameModel
-  interface IAIModel
+  interface IBoardModel
   interface IPlayerModel
+  interface IAIModel
 }
 
 IGameModel *-- IAIModel
+IGameModel *-- IBoardModel
 IGameModel *-- IPlayerModel
 
 package TicTacToe.Models
 {
   class GameModel <<Serializable>> implements IGameModel
-  class AIModel <<Serializable>> implements IAIModel
+  class BoardModel <<Serializable>> implements IBoardModel
   class PlayerModel <<Serializable>> implements IPlayerModel
+  class AIModel <<Serializable>> implements IAIModel
   class AITurnModel <<Serializable>>
 }
 
+GameModel *-- BoardModel
 GameModel *-- AIModel
 GameModel *-- AITurnModel
 GameModel *-- PlayerModel
@@ -49,8 +53,6 @@ GameController *-- GameModel
 GameController *-- AITurnController
 GameController *-left- BoardController
 AITurnController *-- BoardController
-AITurnController *-- AITurnModel
-AITurnController *-- AIModel
 
 package TicTacToe
 {

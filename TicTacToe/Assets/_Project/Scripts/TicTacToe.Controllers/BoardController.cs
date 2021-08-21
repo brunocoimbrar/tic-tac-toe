@@ -18,45 +18,62 @@ namespace TicTacToe.Controllers
             _eventService = eventService;
         }
 
-        public void CopyBoard(ref int?[,] result)
+        public bool HasAnySequence(IReadOnlyTable<int?> board, Vector2Int slot, int playerIndex, List<Sequence> sequences = null)
         {
-            result ??= new int?[_model.BoardSize, _model.BoardSize];
+            bool result = false;
 
-            for (int x = 0; x < _model.BoardSize; x++)
+            if (HasBackSlashSequence(board, slot, playerIndex, out Sequence sequence))
             {
-                for (int y = 0; y < _model.BoardSize; y++)
-                {
-                    result[x, y] = _model.GetSlotValue(x, y);
-                }
+                result = true;
+                sequences?.Add(sequence);
             }
+
+            if (HasForwardSlashSequence(board, slot, playerIndex, out sequence))
+            {
+                result = true;
+                sequences?.Add(sequence);
+            }
+
+            if (HasHorizontalSequence(board, slot, playerIndex, out sequence))
+            {
+                result = true;
+                sequences?.Add(sequence);
+            }
+
+            if (HasVerticalSequence(board, slot, playerIndex, out sequence))
+            {
+                result = true;
+                sequences?.Add(sequence);
+            }
+
+            return result;
         }
 
         public void Play(Vector2Int slot)
         {
-            int playerTurn = _model.Turn;
-            int?[,] board = null;
-            CopyBoard(ref board);
-
-            if (!TrySimulatePlay(board, slot, _model.PlayerIndex, ref playerTurn, out IReadOnlyList<Sequence> sequences))
+            if (_model.Board[slot.x, slot.y].HasValue)
             {
                 return;
             }
 
-            _model.SetSlotValue(slot.x, slot.y, board[slot.x, slot.y]);
+            _model.Board[slot.x, slot.y] = _model.PlayerIndex;
             _eventService.Invoke(this, new SlotValueChangedEvent
             {
                 Slot = slot
             });
 
-            if (sequences != null && sequences.Count > 0)
+            int boardArea = _model.Board.Width * _model.Board.Width;
+            List<Sequence> sequences = new List<Sequence>();
+
+            if (HasAnySequence(_model.Board, slot, _model.PlayerIndex, sequences))
             {
-                _model.Sequences = sequences;
-                _model.GetPlayer(_model.PlayerIndex).Score++;
+                _model.Board.Sequences = sequences;
+                _model.Players[_model.PlayerIndex].Score++;
                 _eventService.Invoke(this, new GameEndedEvent());
             }
-            else if (_model.Turn < playerTurn)
+            else if (_model.Turn + 1 < boardArea)
             {
-                _model.Turn = playerTurn;
+                _model.Turn++;
                 _eventService.Invoke(this, new TurnChangedEvent());
             }
             else
@@ -65,36 +82,12 @@ namespace TicTacToe.Controllers
             }
         }
 
-        public bool TrySimulatePlay([NotNull] int?[,] board, Vector2Int slot, int playerIndex, ref int playerTurn, out IReadOnlyList<Sequence> sequences)
+        private bool HasBackSlashSequence(IReadOnlyTable<int?> board, Vector2Int slot, int playerIndex, out Sequence sequence)
         {
-            if (board[slot.x, slot.y].HasValue)
-            {
-                sequences = null;
+            sequence = new Sequence();
 
-                return false;
-            }
-
-            board[slot.x, slot.y] = playerIndex;
-            List<Sequence> result = new List<Sequence>();
-            CheckBackSlashSequence(board, slot, playerIndex, result);
-            CheckForwardSlashSequence(board, slot, playerIndex, result);
-            CheckHorizontalSequence(board, slot, playerIndex, result);
-            CheckVerticalSequence(board, slot, playerIndex, result);
-
-            if (result.Count == 0 && _model.Turn + 1 < _model.BoardSize * _model.BoardSize)
-            {
-                playerTurn++;
-            }
-
-            sequences = result;
-
-            return true;
-        }
-
-        private void CheckBackSlashSequence([NotNull] int?[,] board, Vector2Int slot, int playerIndex, List<Sequence> sequences)
-        {
             int sequenceSize = 1;
-            Vector2Int from = slot;
+            sequence.From = slot;
 
             for (Vector2Int copy = slot - Vector2Int.one; copy.x >= 0 && copy.y >= 0; copy -= Vector2Int.one)
             {
@@ -103,82 +96,74 @@ namespace TicTacToe.Controllers
                     break;
                 }
 
-                from = copy;
+                sequence.From = copy;
                 sequenceSize++;
             }
 
-            Vector2Int to = slot;
+            sequence.To = slot;
 
-            for (Vector2Int copy = slot + Vector2Int.one; copy.x < _model.BoardSize && copy.y < _model.BoardSize; copy += Vector2Int.one)
+            for (Vector2Int copy = slot + Vector2Int.one; copy.x < _model.Board.Width && copy.y < _model.Board.Width; copy += Vector2Int.one)
             {
                 if (!board[copy.x, copy.y].HasValue || board[copy.x, copy.y] != playerIndex)
                 {
                     break;
                 }
 
-                to = copy;
+                sequence.To = copy;
                 sequenceSize++;
             }
 
-            if (sequenceSize >= _model.SequenceSize)
-            {
-                sequences.Add(new Sequence
-                {
-                    From = from,
-                    To = to
-                });
-            }
+            return sequenceSize >= _model.Board.SequenceSize;
         }
 
-        private void CheckForwardSlashSequence([NotNull] int?[,] board, Vector2Int slot, int playerIndex, List<Sequence> sequences)
+        private bool HasForwardSlashSequence(IReadOnlyTable<int?> board, Vector2Int slot, int playerIndex, out Sequence sequence)
         {
+            sequence = new Sequence();
+
             int sequenceSize = 1;
-            Vector2Int from = slot;
+            sequence.From = slot;
 
-            for (Vector2Int increment = Vector2Int.right - Vector2Int.up,
-                            copy = slot + increment;
-                 copy.x < _model.BoardSize && copy.y >= 0;
-                 copy += increment)
             {
-                if (!board[copy.x, copy.y].HasValue || board[copy.x, copy.y] != playerIndex)
+                Vector2Int increment = Vector2Int.right - Vector2Int.up;
+
+                for (Vector2Int copy = slot + increment; copy.x < _model.Board.Width && copy.y >= 0; copy += increment)
                 {
-                    break;
+                    if (!board[copy.x, copy.y].HasValue || board[copy.x, copy.y] != playerIndex)
+                    {
+                        break;
+                    }
+
+                    sequence.From = copy;
+                    sequenceSize++;
                 }
-
-                from = copy;
-                sequenceSize++;
             }
 
-            Vector2Int to = slot;
+            sequence.To = slot;
 
-            for (Vector2Int increment = Vector2Int.left - Vector2Int.down,
-                            copy = slot + increment;
-                 copy.x >= 0 && copy.y < _model.BoardSize;
-                 copy += increment)
             {
-                if (!board[copy.x, copy.y].HasValue || board[copy.x, copy.y] != playerIndex)
+                Vector2Int increment = Vector2Int.left - Vector2Int.down;
+
+                for (Vector2Int copy = slot + increment; copy.x >= 0 && copy.y < _model.Board.Width; copy += increment)
                 {
-                    break;
+                    if (!board[copy.x, copy.y].HasValue || board[copy.x, copy.y] != playerIndex)
+                    {
+                        break;
+                    }
+
+                    sequence.To = copy;
+                    sequenceSize++;
                 }
-
-                to = copy;
-                sequenceSize++;
             }
 
-            if (sequenceSize >= _model.SequenceSize)
-            {
-                sequences.Add(new Sequence
-                {
-                    From = from,
-                    To = to
-                });
-            }
+            return sequenceSize >= _model.Board.SequenceSize;
         }
 
-        private void CheckHorizontalSequence([NotNull] int?[,] board, Vector2Int slot, int playerIndex, List<Sequence> sequences)
+        private bool HasHorizontalSequence(IReadOnlyTable<int?> board, Vector2Int slot, int playerIndex, out Sequence sequence)
         {
+            sequence = new Sequence();
+
             int sequenceSize = 1;
-            Vector2Int from = slot;
+            sequence.From = slot;
 
             for (Vector2Int copy = slot + Vector2Int.left; copy.x >= 0; copy.x--)
             {
@@ -187,70 +172,58 @@ namespace TicTacToe.Controllers
                     break;
                 }
 
-                from = copy;
+                sequence.From = copy;
                 sequenceSize++;
             }
 
-            Vector2Int to = slot;
+            sequence.To = slot;
 
-            for (Vector2Int copy = slot + Vector2Int.right; copy.x < _model.BoardSize; copy.x++)
+            for (Vector2Int copy = slot + Vector2Int.right; copy.x < _model.Board.Width; copy.x++)
             {
                 if (!board[copy.x, copy.y].HasValue || board[copy.x, copy.y] != playerIndex)
                 {
                     break;
                 }
 
-                to = copy;
+                sequence.To = copy;
                 sequenceSize++;
             }
 
-            if (sequenceSize >= _model.SequenceSize)
-            {
-                sequences.Add(new Sequence
-                {
-                    From = from,
-                    To = to
-                });
-            }
+            return sequenceSize >= _model.Board.SequenceSize;
         }
 
-        private void CheckVerticalSequence([NotNull] int?[,] board, Vector2Int slot, int playerTurn, List<Sequence> sequences)
+        private bool HasVerticalSequence(IReadOnlyTable<int?> board, Vector2Int slot, int playerIndex, out Sequence sequence)
         {
+            sequence = new Sequence();
+
             int sequenceSize = 1;
-            Vector2Int from = slot;
+            sequence.From = slot;
 
             for (Vector2Int copy = slot - Vector2Int.up; copy.y >= 0; copy.y--)
             {
-                if (!board[copy.x, copy.y].HasValue || board[copy.x, copy.y] != playerTurn)
+                if (!board[copy.x, copy.y].HasValue || board[copy.x, copy.y] != playerIndex)
                 {
                     break;
                 }
 
-                from = copy;
+                sequence.From = copy;
                 sequenceSize++;
             }
 
-            Vector2Int to = slot;
+            sequence.To = slot;
 
-            for (Vector2Int copy = slot - Vector2Int.down; copy.y < _model.BoardSize; copy.y++)
+            for (Vector2Int copy = slot - Vector2Int.down; copy.y < _model.Board.Width; copy.y++)
             {
-                if (!board[copy.x, copy.y].HasValue || board[copy.x, copy.y] != playerTurn)
+                if (!board[copy.x, copy.y].HasValue || board[copy.x, copy.y] != playerIndex)
                 {
                     break;
                 }
 
-                to = copy;
+                sequence.To = copy;
                 sequenceSize++;
             }
 
-            if (sequenceSize >= _model.SequenceSize)
-            {
-                sequences.Add(new Sequence
-                {
-                    From = from,
-                    To = to
-                });
-            }
+            return sequenceSize >= _model.Board.SequenceSize;
         }
     }
 }

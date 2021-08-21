@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using TicTacToe.Common;
+using TicTacToe.Controllers;
 using UnityEngine;
 
 namespace TicTacToe.Models
@@ -10,12 +11,7 @@ namespace TicTacToe.Models
     public sealed class GameModel : IGameModel, ISerializationCallbackReceiver
     {
         [SerializeField]
-        [Min(MinBoardSize)]
-        private int _boardSize = MinBoardSize;
-
-        [SerializeField]
-        [Min(MinBoardSize)]
-        private int _sequenceSize = MinBoardSize;
+        private BoardModel _board = new BoardModel();
 
         [SerializeField]
         private List<PlayerModel> _players = new List<PlayerModel>
@@ -52,68 +48,28 @@ namespace TicTacToe.Models
             },
         };
 
-        private const int MinBoardSize = 3;
-        private int?[,] _board = new int?[MinBoardSize, MinBoardSize];
-
         public AITurnModel AITurn { get; } = new AITurnModel();
 
-        public int BoardSize => _boardSize;
-
         public int PlayerIndex => Turn % _players.Count;
-
-        public int SequenceSize => _sequenceSize;
 
         public int Turn { get; set; }
 
         [NotNull]
-        [ItemNotNull]
-        public IReadOnlyList<IAIModel> AIList => _aiList;
+        public BoardModel Board => _board;
 
         [NotNull]
         [ItemNotNull]
-        public IReadOnlyList<IPlayerModel> Players => _players;
+        public List<AIModel> AIList => _aiList;
 
         [NotNull]
-        public IReadOnlyList<Sequence> Sequences { get; set; } = Array.Empty<Sequence>();
-
-        [NotNull]
-        public PlayerModel GetPlayer(int playerIndex)
-        {
-            return _players[playerIndex];
-        }
-
-        public int? GetSlotValue(int x, int y)
-        {
-            return _board[x, y];
-        }
-
-        public void SetSlotValue(int x, int y, int? value)
-        {
-            _board[x, y] = value;
-        }
-
-        private void SetBoardSize(int value)
-        {
-            if (value < MinBoardSize)
-            {
-                throw new ArgumentOutOfRangeException(nameof(value), value, $"Must be at least {MinBoardSize}!");
-            }
-
-            if (_board.Length == value)
-            {
-                return;
-            }
-
-            _boardSize = value;
-            _board = new int?[_boardSize, _boardSize];
-            _sequenceSize = Mathf.Clamp(_sequenceSize, MinBoardSize, _boardSize);
-        }
+        [ItemNotNull]
+        public List<PlayerModel> Players => _players;
 
         private void SetPlayerCount(int value)
         {
-            if (value < MinBoardSize - 1)
+            if (value < BoardModel.MinWidth - 1)
             {
-                throw new ArgumentOutOfRangeException(nameof(value), value, $"Must be between {MinBoardSize - 1} and {BoardSize - 1}!");
+                throw new ArgumentOutOfRangeException(nameof(value), value, $"Must be between {BoardModel.MinWidth - 1} and {_board.Width - 1}!");
             }
 
             if (_players.Count == value)
@@ -135,6 +91,17 @@ namespace TicTacToe.Models
             }
         }
 
+        [NotNull]
+        IBoardModel IGameModel.Board => Board;
+
+        [NotNull]
+        [ItemNotNull]
+        IReadOnlyList<IAIModel> IGameModel.AIList => AIList;
+
+        [NotNull]
+        [ItemNotNull]
+        IReadOnlyList<IPlayerModel> IGameModel.Players => Players;
+
         void ISerializationCallbackReceiver.OnAfterDeserialize()
         {
             _players[0].AIIndex = -1;
@@ -144,15 +111,13 @@ namespace TicTacToe.Models
                 _players[i].AIIndex = Mathf.Clamp(_players[i].AIIndex, -1, _aiList.Count - 1);
             }
 
-            SetBoardSize(_boardSize);
-
             try
             {
                 SetPlayerCount(_players.Count);
             }
             catch
             {
-                SetPlayerCount(BoardSize - 1);
+                SetPlayerCount(_board.Width - 1);
             }
         }
 
