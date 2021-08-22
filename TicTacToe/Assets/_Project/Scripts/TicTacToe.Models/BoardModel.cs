@@ -41,7 +41,7 @@ namespace TicTacToe.Controllers
                 throw new ArgumentOutOfRangeException(nameof(value), value, $"Must be at least {MinWidth}!");
             }
 
-            if (_width == value)
+            if (_width == value && _slots.Length == value * value)
             {
                 return;
             }
@@ -51,11 +51,11 @@ namespace TicTacToe.Controllers
             _sequenceSize = Mathf.Clamp(_sequenceSize, MinWidth, _width);
         }
 
-        void ISerializationCallbackReceiver.OnBeforeSerialize()
+        void ISerializationCallbackReceiver.OnAfterDeserialize()
         {
             SetBoardSize(_width);
         }
 
-        void ISerializationCallbackReceiver.OnAfterDeserialize() { }
+        void ISerializationCallbackReceiver.OnBeforeSerialize() { }
     }
 }
